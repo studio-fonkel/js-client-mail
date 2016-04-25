@@ -1,24 +1,23 @@
-
 (function( $ ) {
     // SETTINGS:
-    var pluginName = "emailMandrill",
+    var pluginName = "jsClientMail",
         defaults = {
-            mandrillKey: '',
+            api: '',
             labelAttribute: 'data-name',
             submitSelector: 'input[type="submit"]',
             success: function () {
-                $('body').removeClass('mandrill-waiting');
-                $('body').addClass('mandrill-success');
+                $('body').removeClass('js-client-mail-waiting');
+                $('body').addClass('js-client-mail-success');
                 console.log('Message sent!');
             },
             wait: function () {
-                $('body').removeClass('mandrill-error');
-                $('body').removeClass('mandrill-success');
-                $('body').addClass('mandrill-waiting');
+                $('body').removeClass('js-client-mail-error');
+                $('body').removeClass('js-client-mail-success');
+                $('body').addClass('js-client-mail-waiting');
             },
             error: function (errors) {
-                $('body').removeClass('mandrill-waiting');
-                $('body').addClass('mandrill-error');
+                $('body').removeClass('js-client-mail-waiting');
+                $('body').addClass('js-client-mail-error');
                 if (errors.length > 1) {
                     console.log(errors.length + ' messages could not be sent, reasons: ' + errors);
                 } else {
@@ -47,8 +46,6 @@
         init: function() {
             var that = this;
 
-            that.mandrill = new mandrill.Mandrill(that.options.mandrillKey);
-
             // Skip init if the parent is not a form.
             if ($(this.element)[0].nodeName != 'FORM') {
                 console.log(pluginName + ' can not handle ' + $(this.element)[0].nodeName + '. Use a FORM instead.');
@@ -63,94 +60,33 @@
 
                 var values = that.parseValues();
 
-                var bodyText = that.createBodyText(values.valuesOrdered);
-
-                that.sendEmails(bodyText, values.valuesDirect);
+                that.callApi(values.valuesOrdered);
 
                 return false;
             })
         },
 
-        createBodyText: function (values) {
-            var output = '';
-
-            $.each(values, function (i, object) {
-                output += object.label + ': ' + object.value + "\n";
-            })
-
-            return output;
-        },
-
-        sendEmails: function(bodyText, values) {
+        callApi: function (values) {
             var that = this
 
-            $.each(that.options.emails, function (emailDelta, emailInfo) {
-                that.temp.total += 1;
-                var mailBody = ''
-
-                if (emailInfo.headerText) {
-                    mailBody += emailInfo.headerText + "\n\n"
+            $.ajax({
+                type: "POST",
+                url: that.options.api,
+                data: JSON.stringify(values),
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                success: function(success){
+                    that.successHandler('success');
+                },
+                error: function(error) {
+                    that.successHandler('error', error);
                 }
-
-                mailBody += bodyText + "\n"
-
-                if (emailInfo.footerText) {
-                    mailBody += emailInfo.footerText
-                }
-
-                var email = {
-                    subject: emailInfo.subject,
-                    body: mailBody,
-                    from: emailInfo.from
-                }
-
-                if (emailInfo.replyToField) { email.replyTo = values[emailInfo.replyToField] }
-                else { email.replyTo = emailInfo.replyTo }
-
-                if (emailInfo.fromNameField) { email.fromName = values[emailInfo.fromNameField] }
-                else { email.fromName = emailInfo.fromName }
-
-                if (emailInfo.toField) { email.to = values[emailInfo.toField] }
-                else { email.to = emailInfo.to }
-
-                that.sendEmail(email)
-            })
-        },
-
-        sendEmail: function (email) {
-            var that = this
-            var to = []
-
-            // Make array of 'to' field:
-            if( typeof email.to === 'string' ) {
-                email.to = [ email.to ];
-            }
-
-            $.each(email.to, function (delta, mail) {
-                to.push({
-                    email: mail
-                })
-            })
-
-            that.mandrill.messages.send({
-                "message": {
-                    "from_email": email.from,
-                    "from_name": email.fromName,
-                    "to": to,
-                    "subject": email.subject,
-                    "headers": {
-                        "Reply-To": email.replyTo
-                    },
-                    "text": email.body
-                }
-            }, function(success){
-                that.successHandler('success');
-            },
-            function(error) {
-                that.successHandler('error', error);
             });
-
         },
+
         waitingHandler: function () {
             var that = this;
             $(that.element).find(that.options.submitSelector).prop('disabled', true);
@@ -202,7 +138,7 @@
             return output;
         }
     }
- 
+
     // jQuery plugin constructor
     $.fn[pluginName] = function ( options ) {
         return this.each(function () {
