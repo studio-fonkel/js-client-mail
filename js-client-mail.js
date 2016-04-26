@@ -60,7 +60,7 @@
 
                 var values = that.parseValues();
 
-                that.callApi(values.valuesOrdered);
+                var result = that.callApi(values.valuesOrdered);
 
                 return false;
             })
@@ -79,10 +79,11 @@
                     "Content-Type": "application/json"
                 },
                 success: function(success){
-                    that.successHandler('success');
+                    console.log(success)
+                    that.options.success(success);
                 },
                 error: function(error) {
-                    that.successHandler('error', error);
+                    that.options.error(error);
                 }
             });
         },
